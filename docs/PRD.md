@@ -17,6 +17,17 @@
 ```
 用户触发 /job-hunter
         │
+        ├── [环节 0] 环境检测
+        │     检测运行环境是否满足条件：
+        │     · opencli 是否已安装（opencli --version）
+        │     · Browser Bridge 扩展是否已连接（opencli doctor）
+        │     · Chrome 是否已登录 Boss 直聘
+        │     如有缺失：
+        │     · 告知用户需要安装什么
+        │     · 询问用户是否愿意安装（不得未经同意自动安装）
+        │     · 需要人工操作的部分（如配置 Chrome 扩展）给出明确步骤指引
+        │     所有环境就绪后进入下一步
+        │
         ├── [分支 A] 新用户（data/job-profile.md 不存在）
         │       │
         │       ├── [环节 1] 交互式引导录入
@@ -53,7 +64,9 @@
                 └── ↓ 进入环节 4
         │
 ├── [环节 4] 创建定时任务
-│     CronCreate（durable: true，每 30 分钟执行一次）
+│     从 data/meta.json 读取 search_interval（默认 30 分钟）
+│     CronCreate（durable: true，按用户设定的间隔执行）
+│     创建成功后，向用户输出标准提示（见「十三、模板化提示」）
 │     以下为定时任务的每次执行内容：
 │     │
 │     ├── [环节 5] 搜索岗位
@@ -126,7 +139,8 @@ job-hunter-skill/
 │   ├── intake.md                   # 新用户引导问答模板
 │   ├── search-strategy.md          # 搜索策略（关键词组合、来源）
 │   ├── filter.md                   # 筛选规则定义
-│   └── scorer.md                   # 评分排序规则定义
+│   ├── scorer.md                   # 评分排序规则定义
+│   └── notifications.md            # 模板化提示（启动/停止/警告）
 ├── data/                           # 运行时用户数据（gitignored）
 │   ├── .gitkeep
 │   ├── job-profile.md              # 用户求职画像
@@ -149,6 +163,7 @@ job-hunter-skill/
 | `prompts/search-strategy.md` | 安装时 | 环节 5（搜索策略） | 环节 11（用户优化） |
 | `prompts/filter.md` | 安装时 | 环节 7（筛选规则） | 环节 11（用户优化） |
 | `prompts/scorer.md` | 安装时 | 环节 8（评分规则） | 环节 11（用户优化） |
+| `prompts/notifications.md` | 安装时 | 环节 4/10/12/13（模板化提示） | — |
 | `data/job-profile.md` | 环节 2（新用户） | 环节 4/7/8 | 环节 11（用户修改） |
 | `data/job-candidates.md` | 环节 3（新用户） | 环节 7（去重参考） | 环节 9（追加新岗位） |
 | `data/meta.json` | 环节 3（新用户） | 环节 3'/7（去重列表） | 环节 9/11 |
@@ -163,14 +178,14 @@ job-hunter-skill/
 # 求职画像
 
 ## 基本信息
-- 城市：佛山
-- 优先区域：南海区（狮山）、禅城区
-- 排除区域：顺德区
-- 工作年限：7年
+- 城市：广州
+- 优先区域：天河区、海珠区
+- 排除区域：（无）
+- 工作年限：5年
 
 ## 薪资期望
-- 最低：18K
-- 期望：20K
+- 最低：15K
+- 期望：18K
 - 最高：22K
 
 ## 岗位方向
@@ -193,10 +208,10 @@ job-hunter-skill/
 - 最低规模：50人（以开发为主体）
 
 ## 搜索关键词
-- 全栈开发 佛山
-- AI开发 佛山
-- Go后端 佛山
-- Python 佛山
+- 全栈开发 广州
+- AI开发 广州
+- Go后端 广州
+- Python 广州
 ```
 
 ### 5.2 data/job-candidates.md — 候选岗位
@@ -210,9 +225,9 @@ job-hunter-skill/
 
 ## 2026-04-05 发现
 
-### #1 全栈工程师(AI Agent/全球化产品) — 佛山市禅城区一帆
+### #1 全栈工程师(AI Agent/全球化产品) — 广州市天河区星辰科技
 - 薪资：15-23K
-- 地点：佛山·禅城区·石湾（支持远程）
+- 地点：广州·天河区·珠江新城（支持远程）
 - 发布日期：2026-04-03
 - 经验要求：3-5年
 - 技能：全栈无侧重, Vue, Python, 全栈项目经验
@@ -223,7 +238,7 @@ job-hunter-skill/
 
 ### #2 Python工程师（AI Agent开发）— 四一技术
 - 薪资：15-30K
-- 地点：佛山·南海区·桂城
+- 地点：广州·海珠区·琶洲
 - 发布日期：2026-04-04
 - 经验要求：5-10年
 - 技能：Scrapy, AI Agent, Docker, Django, Python, Flask
@@ -250,16 +265,17 @@ job-hunter-skill/
   "run_count": 21,
   "total_candidates": 15,
   "next_candidate_number": 16,
+  "search_interval_minutes": 30,
   "recorded_job_ids": [
     "28d2dcad70c1b7de0nZ-29u9E1JZ",
     "5047ee0d92fb5e440nR92dm4FldS"
   ],
   "exclude_keywords": ["测试", "QA", "实习"],
   "search_keywords": [
-    "全栈开发 佛山",
-    "AI开发 佛山",
-    "Go后端 佛山",
-    "Python 佛山"
+    "全栈开发 广州",
+    "AI开发 广州",
+    "Go后端 广州",
+    "Python 广州"
   ]
 }
 ```
@@ -362,10 +378,37 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 
 - 定时任务仅在 Claude Code 运行期间执行（CronCreate 限制）
 - durable 任务最大持续 7 天，到期需重新启动
-- Boss 直聘搜索频率控制在 30 分钟一次，避免触发风控
+- Boss 直聘搜索频率不宜过短，避免触发风控
 - 每次搜索结果上限约 30 条（opencli 限制）
 - 岗位详情依赖 Boss 页面结构，结构变化可能导致详情获取失败
 - 发布日期依赖 Boss 页面展示，部分岗位可能无发布日期
+
+### 搜索频率安全阈值
+
+| 间隔 | 风险等级 | 说明 |
+|------|---------|------|
+| >= 30 分钟 | 安全 | 推荐默认值 |
+| 15-29 分钟 | 低风险 | 可接受，但需提醒用户 |
+| 10-14 分钟 | 中风险 | 触发警告，需用户二次确认 |
+| < 10 分钟 | 高风险 | 拒绝设置，强制最低 10 分钟 |
+
+用户设置间隔 < 30 分钟时，输出警告提示（见「十三、模板化提示」）。
+
+### 环境检测清单
+
+新用户首次运行时，自动检测以下环境：
+
+| 检测项 | 检测方式 | 缺失处理 |
+|--------|---------|---------|
+| Node.js >= 20 | `node --version` | 提示安装，不自动执行 |
+| opencli 已安装 | `opencli --version` | 询问是否安装（需用户同意） |
+| Browser Bridge 连接 | `opencli doctor` | 提示安装 Chrome 扩展（人工操作） |
+| Chrome 已登录 Boss 直聘 | `opencli boss search "测试" --limit 1` | 提示用户在 Chrome 中登录 zhipin.com |
+
+**原则**：
+- 不得在未经用户同意的情况下自动安装任何软件
+- 需要人工操作的步骤（如安装 Chrome 扩展、登录网站），给出清晰的步骤指引
+- 检测结果逐项展示，让用户了解当前状态
 
 ---
 
@@ -377,7 +420,10 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 - [ ] prompts/search-strategy.md 搜索策略
 - [ ] prompts/filter.md 筛选规则
 - [ ] prompts/scorer.md 评分规则
+- [ ] prompts/notifications.md 模板化提示
+- [ ] 环境检测（opencli、Browser Bridge、Boss 登录）
 - [ ] 定时任务创建/停止/状态查询
+- [ ] 搜索频率配置 + 安全警告
 - [ ] 岗位搜索 → 详情获取 → 筛选 → 评分 → 记录 完整闭环
 
 ### P1 — 体验优化
@@ -390,3 +436,104 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 - [ ] 自动打招呼（对高匹配度岗位自动发送问候）
 - [ ] 数据可视化（生成 HTML 岗位看板）
 - [ ] 面试准备辅助（根据岗位要求生成复习清单）
+
+---
+
+## 十三、模板化提示
+
+所有关键节点的提示语必须模板化，存储在 `prompts/notifications.md`，确保每次输出质量一致、不遗漏。
+
+### 13.1 定时任务启动成功
+
+```
+Job Hunter 已启动！
+
+运行配置：
+  - 搜索间隔：每 {interval} 分钟
+  - 搜索关键词：{keywords_count} 组
+  - 搜索来源：Boss 直聘（search + recommend）
+
+注意事项：
+  1. 定时任务仅在 Claude Code 运行期间执行，关闭终端/退出 Claude Code 后任务暂停
+  2. durable 任务最长持续 7 天，到期后需要重新运行 /job-hunter start
+  3. 岗位记录文件：data/job-candidates.md，可随时查看
+
+管理命令：
+  /job-hunter status   — 查看运行状态
+  /job-hunter stop     — 停止搜索
+  /job-hunter start    — 恢复搜索
+```
+
+### 13.2 搜索频率警告
+
+当用户设定间隔 < 30 分钟时触发：
+
+```
+搜索频率警告：当前设定的间隔为 {interval} 分钟
+
+风险等级：{risk_level}
+  - 频繁请求 Boss 直聘可能触发平台风控
+  - 可能导致账号被限制访问
+  - 建议间隔不低于 30 分钟
+
+是否确认使用 {interval} 分钟间隔？（y/n）
+```
+
+### 13.3 任务即将到期（7天限制）
+
+在任务运行接近 7 天时（如第 6 天），在某一轮搜索报告后追加：
+
+```
+Job Hunter 提醒：定时任务即将在约 {remaining_hours} 小时后到期（durable 任务最长 7 天）
+
+到期后不会丢失数据，但搜索将停止。
+如需继续，请在到期后运行 /job-hunter start 重新启动。
+```
+
+### 13.4 环境检测未通过
+
+```
+环境检测未通过，以下问题需要解决：
+
+  [{status}] opencli .............. {result}
+  [{status}] Browser Bridge ....... {result}
+  [{status}] Boss 直聘登录 ........ {result}
+
+{针对每项缺失的具体指引}
+
+请解决以上问题后重新运行 /job-hunter
+```
+
+### 13.5 每轮搜索报告
+
+```
+Job Hunter 本轮报告（{date}）
+
+发现 {new_count} 个新匹配岗位，已记录到 data/job-candidates.md
+
+{对每个新岗位的一行摘要，按匹配度排序}
+  #N  岗位名 @ 公司 | 薪资 | 地点 | 发布于{date} | 匹配{score}分
+
+累计已记录 {total_count} 个候选岗位。
+```
+
+---
+
+## 十四、搜索间隔配置
+
+`data/meta.json` 中的 `search_interval_minutes` 字段控制搜索频率：
+
+```json
+{
+  "search_interval_minutes": 30
+}
+```
+
+**规则**：
+- 默认值：30 分钟
+- 用户可在初始化时设定，也可随时通过编辑 meta.json 修改
+- 修改后需重新启动定时任务（`/job-hunter stop` → `/job-hunter start`）才生效
+- 最低允许值：10 分钟（硬限制，低于此值拒绝设置）
+- 10-14 分钟：高风险警告，需用户二次确认
+- 15-29 分钟：低风险提示
+- >= 30 分钟：安全，无需额外提示
