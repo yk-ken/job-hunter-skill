@@ -1,0 +1,17 @@
+# User data (personal job search data)
+data/job-profile.md
+data/job-candidates.md
+data/meta.json
+
+# Keep the directory
+!data/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
