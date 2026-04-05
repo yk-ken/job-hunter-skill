@@ -131,6 +131,12 @@ job-hunter-skill/
 
 ---
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yk-ken/job-hunter-skill&type=Date)](https://star-history.com/#yk-ken/job-hunter-skill&Date)
+
+---
+
 ## License
 
 [MIT](LICENSE)
