@@ -2,8 +2,6 @@
 
 > 让 AI 帮你刷 Boss，你只管挑心仪的岗位。
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet) ![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)
-
 自动从 Boss 直聘发现、筛选、记录匹配岗位的 Claude Code Skill。
 建立求职画像后，每 30 分钟自动搜索新岗位，智能评分排序，持续追加到候选清单。
 
