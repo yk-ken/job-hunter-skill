@@ -28,10 +28,11 @@
 # 1. 安装 Skill
 git clone https://github.com/yk-ken/job-hunter-skill ~/.claude/skills/job-hunter
 
-# 2. 在 Claude Code 中运行
-/job-hunter
+# 2. 创建工作目录（数据保存在这里，与 skill 代码分离）
+mkdir ~/job-search && cd ~/job-search
 
-# 3. 按提示完成画像 → 自动开始搜索
+# 3. 在此目录启动 Claude Code，运行
+/job-hunter
 ```
 
 首次运行会自动检测环境并引导你建立求职画像（城市、薪资、技术栈等），完成后立即创建定时搜索任务。
@@ -107,6 +108,8 @@ git clone https://github.com/yk-ken/job-hunter-skill .claude/skills/job-hunter
 
 ## 文件结构
 
+**Skill 安装目录**（`~/.claude/skills/job-hunter/`）：
+
 ```
 job-hunter-skill/
 ├── SKILL.md                 # 主入口，完整流程定义
@@ -116,10 +119,6 @@ job-hunter-skill/
 │   ├── filter.md            #   筛选规则（硬条件过滤）
 │   ├── scorer.md            #   评分规则（多维加权打分）
 │   └── notifications.md     #   模板化提示（启动/停止/警告/报告）
-├── data/                    # 运行时用户数据（gitignored）
-│   ├── job-profile.md       #   求职画像
-│   ├── job-candidates.md    #   候选岗位列表（持续追加）
-│   └── meta.json            #   运行元数据（去重列表、排除规则）
 ├── docs/
 │   ├── PRD.md               #   产品需求文档
 │   └── plan.md              #   实施计划
@@ -128,6 +127,18 @@ job-hunter-skill/
 ├── LICENSE                  #   MIT
 └── README.md                #   本文件
 ```
+
+**用户工作目录**（如 `~/job-search/`）：
+
+```
+job-search/                  ← 你的工作目录（启动 Claude Code 的位置）
+└── data/
+    ├── job-profile.md       #   你的求职画像
+    ├── job-candidates.md    #   候选岗位列表（持续追加）
+    └── meta.json            #   运行元数据（去重列表、排除规则、定时任务ID）
+```
+
+> 模板文件从 skill 安装目录读取，用户数据保存在工作目录。两者分离，互不影响。
 
 ---
 

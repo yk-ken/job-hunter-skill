@@ -1,17 +1,12 @@
-# User data (personal job search data)
-data/job-profile.md
-data/job-candidates.md
-data/meta.json
-
-# Keep the directory
-!data/.gitkeep
-
 # OS
 .DS_Store
 Thumbs.db
 
 # Claude Code
 CLAUDE.md
+
+# oh-my-claudecode
+.omc/
 
 # IDE
 .idea/
