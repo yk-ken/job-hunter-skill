@@ -82,7 +82,23 @@
 - 岗位明确标注"单休" → 若用户最低要求为"单休"则通过，否则排除，原因标记 `REST_DAY:单休`
 - 岗位未标注休息制度 → 通过（不因缺失信息排除）
 
-### Step 6: 公司规模（软条件）
+### Step 6: HR 活跃度
+
+检查岗位详情中的 `active_time` 字段（HR 活跃时间）。
+
+活跃度等级从高到低：
+
+```
+刚刚活跃 > 今日活跃 > 3日内活跃 > 本周活跃 > 2周内活跃 > 更低频/无活跃
+```
+
+判定逻辑：
+
+- "刚刚活跃" / "今日活跃" / "3日内活跃" / "本周活跃" → 通过
+- "2周内活跃" / "半个月内活跃" / "1个月内活跃" / 更低频 → 排除，原因标记 `HR_INACTIVE:<active_time>`
+- `active_time` 字段缺失 → 通过（不因缺失信息排除），附加标记 `HR_ACTIVITY_UNKNOWN`
+
+### Step 7: 公司规模（软条件）
 
 读取 `job-profile.md` 中 `公司偏好` 的 `最低规模` 值。
 
@@ -148,6 +164,7 @@
 - `SALARY_NEGOTIABLE` — 面议薪资
 - `SALARY_UNPARSABLE` — 薪资无法解析
 - `HAS_YEAR_BONUS:N` — N 个月年终奖
+- `HR_ACTIVITY_UNKNOWN` — HR 活跃度信息缺失
 - `SCALE_PENALTY` — 公司规模低于最低要求
 
 ### 被排除的岗位
@@ -170,12 +187,13 @@
 - `LOCATION_MISMATCH` — 地点不匹配
 - `SALARY_BELOW_MIN:<岗位下限>_<用户最低>` — 薪资低于下限
 - `REST_DAY:<休息制度>` — 休息制度不符合要求
+- `HR_INACTIVE:<活跃时间>` — HR 活跃度过低
 
 ---
 
 ## 执行注意事项
 
-1. 筛选按 Step 1 到 Step 6 顺序执行，短路求值：任一步骤排除后不再执行后续步骤
+1. 筛选按 Step 1 到 Step 7 顺序执行，短路求值：任一步骤排除后不再执行后续步骤
 2. 所有标记字段原样传递到后续评分环节（`prompts/scorer.md`），不要丢弃
 3. 被排除的岗位不计入 `meta.json.recorded_job_ids`，不计入候选人列表
 4. 如果 `meta.json.recorded_job_ids` 为空数组，Step 1 等价于全部通过

@@ -24,6 +24,27 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 
 收到 `/job-hunter` 命令后，按以下顺序执行：
 
+### 步骤 0：工作目录检查
+
+检查当前工作目录（CWD）下是否存在 `data/` 目录：
+
+- **data/ 已存在** → 继续步骤 1（识别为已有用户的工作目录）
+- **data/ 不存在** → 使用 AskUserQuestion 询问用户：
+
+```
+当前目录不是 Job Hunter 的工作目录。
+数据文件（画像、候选岗位）将保存在当前目录的 data/ 下。
+
+请确认：
+1. 在当前目录继续 — 数据将保存在 {CWD}/data/
+2. 我想先切换到其他目录
+```
+
+如果用户选择 2，提示用户使用 `cd` 切换到目标目录后重新运行 `/job-hunter`，然后结束。
+如果用户选择 1，继续步骤 1。
+
+> **重要**：所有 `data/` 路径（如 data/job-profile.md、data/meta.json）均相对于当前工作目录（CWD）解析。模板文件通过 `${CLAUDE_SKILL_DIR}/prompts/` 从 skill 安装目录读取。两者分离。
+
 ### 步骤 1：检查是否为新用户
 
 读取 `data/job-profile.md` 是否存在：
@@ -248,6 +269,7 @@ opencli boss detail --security-id {id} -f json
 - 技能要求（skills / tags）
 - 公司信息（company_name, company_scale, company_type）
 - BOSS 信息（boss_name, boss_title）
+- BOSS 活跃时间（active_time）
 - 岗位名称（job_name）
 - security_id
 - job_id（用于生成链接）
@@ -266,7 +288,8 @@ opencli boss detail --security-id {id} -f json
 3. 城市区域：不匹配画像中的城市/区域偏好 → 排除
 4. 薪资下限：低于画像最低薪资 → 排除
 5. 休息制度：不符合画像最低要求 → 排除
-6. 公司规模：低于最低要求 → 不排除但标记 SCALE_PENALTY
+6. HR 活跃度：active_time 为"2周内活跃"或更低频 → 排除
+7. 公司规模：低于最低要求 → 不排除但标记 SCALE_PENALTY
 
 将筛选通过的岗位和对应的标记传递给步骤 5。
 
@@ -275,10 +298,11 @@ opencli boss detail --security-id {id} -f json
 读取 ${CLAUDE_SKILL_DIR}/prompts/scorer.md，按照其中的规则计算每个通过筛选岗位的综合匹配度分数（满分 100）：
 
 评分维度：
-- 发布日期（30分）：越新分数越高，1天内=30，2天=27，3天=24，5天=18，7天=14，10天=8，14天=4，超过14天=0，无日期=15
-- 薪资匹配（25分）：与画像薪资期望的重合程度
+- 发布日期（25分）：越新分数越高，1天内=25，2天=23，3天=20，5天=15，7天=12，10天=7，14天=3，超过14天=0，无日期=13
+- 薪资匹配（20分）：与画像薪资期望的重合程度
 - 技术栈匹配（20分）：画像技术栈与岗位要求的重叠度
 - 地点匹配（15分）：优先区域=15，同城市非优先=10，远程=12，不匹配=0
+- HR 活跃度（10分）：刚刚活跃=10，今日活跃=8，3日内活跃=5，本周活跃=2，无信息=5
 - 公司规模（10分）：匹配偏好=10，100人以上=8，50-99人=5，50人以下(开发主体)=3，其他=1
 
 星级映射：
@@ -306,12 +330,12 @@ opencli boss detail --security-id {id} -f json
 - 经验要求：X-X年
 - 技能：技能1, 技能2, 技能3
 - 匹配度：★★★★☆（XX分）
-- BOSS：姓名 · 职位
+- BOSS：姓名 · 职位 · 刚刚活跃
 - 链接：https://www.zhipin.com/job_detail/{job_id}.html
 - security_id：xxx
 ```
 
-其中 #N 使用 data/meta.json 中的 next_candidate_number，每记录一个岗位后编号递增 1。
+其中 #N 使用 data/meta.json 中的 next_candidate_number，每记录一个岗位后编号递增 1。BOSS 行末尾附带 HR 活跃度信息（active_time 字段）。
 
 新日期分组的格式：
 
@@ -348,7 +372,7 @@ opencli boss detail --security-id {id} -f json
 - {date} = 当前日期（YYYY-MM-DD）
 - {new_count} = 本轮新记录的岗位数
 - {job_summaries} = 每个新岗位的一行摘要（按匹配分降序），格式：
-  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | 匹配 {score}分
+  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 匹配 {score}分
 - {total_count} = meta.json 中的 total_candidates
 
 如果本轮无新岗位（new_count = 0）：
@@ -386,7 +410,7 @@ remaining_hours = floor((created_at + 7天 - 当前时间) / 小时)
 - 经验要求：X-X年
 - 技能：技能1, 技能2, 技能3
 - 匹配度：★★★★☆（XX分）
-- BOSS：姓名 · 职位
+- BOSS：姓名 · 职位 · 刚刚活跃
 - 链接：https://www.zhipin.com/job_detail/{job_id}.html
 - security_id：xxx
 ```
@@ -395,5 +419,6 @@ remaining_hours = floor((created_at + 7天 - 当前时间) / 小时)
 - 具体地址缺失：仅显示「城市·区域」
 - 发布日期缺失：显示「未知」
 - 经验要求缺失：显示「未知」
-- BOSS 信息缺失：显示「未知 · 未知」
+- BOSS 信息缺失：显示「未知 · 未知 · 未知」
+- HR 活跃度缺失：BOSS 行末尾显示「未知」
 - 薪资为「面议」时：显示「面议」
