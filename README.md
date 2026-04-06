@@ -7,7 +7,7 @@
 自动从 Boss 直聘发现、筛选、记录匹配岗位的 Claude Code Skill。
 建立求职画像后，每 30 分钟自动搜索新岗位，智能评分排序，持续追加到候选清单。
 
-[快速开始](#快速开始) · [命令](#命令) · [工作流程](#工作流程) · [安装](#安装)
+[前置准备](#前置准备) · [快速开始](#快速开始) · [命令](#命令) · [工作流程](#工作流程)
 
 ---
 
@@ -22,13 +22,26 @@
 
 ---
 
+## 前置准备
+
+| 依赖 | 说明 | 安装方式 |
+|------|------|---------|
+| Claude Code | AI 编码助手 | [官方安装指南](https://docs.anthropic.com/en/docs/claude-code) |
+| Node.js >= 20 | JavaScript 运行时 | [nodejs.org](https://nodejs.org) |
+| opencli | Boss 直聘 CLI 工具 | `npm install -g @jackwener/opencli` |
+| Chrome + Browser Bridge | 浏览器自动化 | 详见 [INSTALL.md](INSTALL.md#3-browser-bridge-chrome-扩展安装) |
+
+> 安装完 opencli 后，运行 `opencli doctor` 验证连接状态。首次运行 `/job-hunter` 也会自动检测环境。
+
+---
+
 ## 快速开始
 
 ```bash
-# 1. 安装 Skill
+# 1. 安装 Skill（全局安装，所有项目可用）
 git clone https://github.com/yk-ken/job-hunter-skill ~/.claude/skills/job-hunter
 
-# 2. 创建工作目录（数据保存在这里，与 skill 代码分离）
+# 2. 创建你的工作目录（画像、岗位等数据保存在这里）
 mkdir ~/job-search && cd ~/job-search
 
 # 3. 在此目录启动 Claude Code，运行
@@ -36,6 +49,8 @@ mkdir ~/job-search && cd ~/job-search
 ```
 
 首次运行会自动检测环境并引导你建立求职画像（城市、薪资、技术栈等），完成后立即创建定时搜索任务。
+
+详细的安装步骤和故障排除，请查看 [INSTALL.md](INSTALL.md)。
 
 ---
 
@@ -71,38 +86,6 @@ mkdir ~/job-search && cd ~/job-search
 ```
 
 每轮循环间隔默认 30 分钟，在 Claude Code 运行期间持续执行。
-
----
-
-## 安装
-
-### 前置准备
-
-| 依赖 | 说明 | 安装方式 |
-|------|------|---------|
-| Claude Code | AI 编码助手 | [官方安装指南](https://docs.anthropic.com/en/docs/claude-code) |
-| Node.js >= 20 | JavaScript 运行时 | [nodejs.org](https://nodejs.org) |
-| opencli | 网站 CLI 工具 | `npm install -g @anthropic-ai/opencli` |
-| Chrome + Browser Bridge | 浏览器自动化 | [详细安装指引](INSTALL.md#browser-bridge-扩展安装) |
-
-> 首次运行 `/job-hunter` 会自动检测以上环境，缺失项会给出安装指引。
-
-### 安装 Skill
-
-```bash
-# 方式一：全局安装（推荐，所有项目可用）
-git clone https://github.com/yk-ken/job-hunter-skill ~/.claude/skills/job-hunter
-
-# 方式二：安装到当前项目
-mkdir -p .claude/skills
-git clone https://github.com/yk-ken/job-hunter-skill .claude/skills/job-hunter
-```
-
-### 验证安装
-
-在 Claude Code 中输入 `/job-hunter`，首次运行会自动进入环境检测和新用户引导。
-
-详细的安装步骤和故障排除，请查看 [INSTALL.md](INSTALL.md)。
 
 ---
 
