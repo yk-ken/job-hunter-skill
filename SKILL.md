@@ -60,7 +60,7 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 1. 环境检测（Node.js、opencli、Browser Bridge、Boss 直聘登录）
 2. 分步问答收集求职画像（4 组问题）
 3. 生成 `data/job-profile.md`
-4. 初始化 `data/job-candidates.md` 和 `data/meta.json`
+4. 初始化 `data/job-candidates.csv` 和 `data/meta.json`
 
 **环境检测未通过时**：读取 `${CLAUDE_SKILL_DIR}/prompts/notifications.md` 中的「环境检测未通过」模板，填充检测结果后输出。不继续后续流程。
 
@@ -181,7 +181,7 @@ Job Hunter 当前未在运行，无需停止。
 Job Hunter 已停止。
 
 你的数据已保留，下次运行 /job-hunter start 即可恢复搜索。
-已记录的 {total_candidates} 个候选岗位仍在 data/job-candidates.md 中。
+已记录的 {total_candidates} 个候选岗位仍在 data/job-candidates.csv 中。
 ```
 
 ---
@@ -276,6 +276,39 @@ opencli boss detail --security-id {id} -f json
 
 如果单个岗位详情获取失败，跳过该岗位，记录错误，继续处理下一个。
 
+## 步骤 3.5：公司调研
+
+对步骤 3 中获取到详情的每个岗位所属公司，逐一执行天眼查调研，补充公司维度的信息。
+
+### 调研方式
+
+使用 WebSearch 搜索「天眼查 {公司名}」，从搜索结果中抓取公司页面，提取以下信息：
+
+| 字段 | 来源 | 默认值（获取失败时） |
+|------|------|---------------------|
+| 公司主营业务 | 天眼查「经营范围」或「主营业务」 | 未查询到 |
+| 公司发展状况 | 天眼查「融资信息」/「企业状态」/「发展阶段」 | 未查询到 |
+| 社保人数 | 天眼查「参保人数」字段 | 未查询到 |
+
+### 执行规则
+
+1. 对每个公司名执行 WebSearch：`天眼查 {company_name}`
+2. 如果搜索结果有天眼查页面链接，用 WebReader 抓取页面内容
+3. 从页面中提取三个字段的信息
+4. 如果搜索失败或页面无法访问，三个字段均填「未查询到」
+5. 将提取的信息附加到对应岗位的数据中，传递给后续筛选和评分步骤
+6. 控制请求频率：每个公司搜索间隔至少 3 秒，避免触发反爬
+
+### 信息提取示例
+
+```
+搜索：天眼查 星辰科技
+结果：
+  公司主营业务：人工智能应用软件开发、AI Agent 平台
+  公司发展状况：A轮融资、快速发展中
+  社保人数：156
+```
+
 ## 步骤 4：筛选
 
 读取 ${CLAUDE_SKILL_DIR}/prompts/filter.md，按照其中的规则执行筛选：
@@ -316,38 +349,43 @@ opencli boss detail --security-id {id} -f json
 
 ## 步骤 6：记录新岗位
 
-将通过筛选并评分的岗位追加到 data/job-candidates.md。
+将通过筛选并评分的岗位追加到 data/job-candidates.csv。
 
-按日期分组，最新的日期在最前面。同一日期内的岗位按评分降序排列。
+### CSV 格式
 
-每个岗位的记录格式如下：
+文件使用 CSV 格式（逗号分隔），第一行为表头，后续每行一个岗位：
 
-```markdown
-### #N 岗位名称 — 公司名
-- 薪资：XX-XXK
-- 地点：城市·区域·具体地址（如有）
-- 发布日期：YYYY-MM-DD
-- 经验要求：X-X年
-- 技能：技能1, 技能2, 技能3
-- 匹配度：★★★★☆（XX分）
-- BOSS：姓名 · 职位 · 刚刚活跃
-- 链接：https://www.zhipin.com/job_detail/{job_id}.html
-- security_id：xxx
+```csv
+编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id
 ```
 
-其中 #N 使用 data/meta.json 中的 next_candidate_number，每记录一个岗位后编号递增 1。BOSS 行末尾附带 HR 活跃度信息（active_time 字段）。
+### 写入规则
 
-新日期分组的格式：
+1. 如果文件不存在或仅有表头行，直接追加数据行
+2. 每个岗位写入一行，字段用逗号分隔
+3. 字段中如含逗号、引号或换行，用双引号包裹整个字段
+4. 编号使用 data/meta.json 中的 next_candidate_number，每记录一个岗位后编号递增 1
+5. 按评分降序排列写入
 
-```markdown
----
+### 字段缺失默认值
 
-## YYYY-MM-DD 发现
+| 字段 | 默认值 |
+|------|--------|
+| 具体地址缺失 | 仅显示「城市·区域」 |
+| 发布日期缺失 | 未知 |
+| 经验要求缺失 | 未知 |
+| BOSS 信息缺失 | 未知 |
+| HR 活跃度缺失 | 未知 |
+| 薪资为「面议」时 | 面议 |
+| 公司主营业务缺失 | 未查询到 |
+| 公司发展状况缺失 | 未查询到 |
+| 社保人数缺失 | 未查询到 |
 
-### #N ...
+### CSV 行示例
+
+```csv
+12,全栈工程师(AI Agent),星辰科技,15-23K,广州·天河区,2026-04-03,3-5年,Vue,Python,MySQL,82,★★★★☆,张明,技术总监,刚刚活跃,人工智能应用软件开发,A轮融资,156,https://www.zhipin.com/job_detail/abc123.html,sec_xxx
 ```
-
-将新日期分组插入到文件的「# 候选岗位列表」标题之后、已有日期分组之前。
 
 ## 步骤 7：更新 meta.json
 
@@ -372,7 +410,7 @@ opencli boss detail --security-id {id} -f json
 - {date} = 当前日期（YYYY-MM-DD）
 - {new_count} = 本轮新记录的岗位数
 - {job_summaries} = 每个新岗位的一行摘要（按匹配分降序），格式：
-  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 匹配 {score}分
+  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 社保{social_insurance}人 | 匹配 {score}分
 - {total_count} = meta.json 中的 total_candidates
 
 如果本轮无新岗位（new_count = 0）：
@@ -400,25 +438,21 @@ remaining_hours = floor((created_at + 7天 - 当前时间) / 小时)
 
 ## 岗位记录格式参考
 
-写入 `data/job-candidates.md` 的每个岗位必须包含以下所有字段，格式严格如下：
+写入 `data/job-candidates.csv` 的每个岗位为一行 CSV，列顺序如下：
 
-```markdown
-### #N 岗位名称 — 公司名
-- 薪资：XX-XXK
-- 地点：城市·区域·具体地址（如有）
-- 发布日期：YYYY-MM-DD
-- 经验要求：X-X年
-- 技能：技能1, 技能2, 技能3
-- 匹配度：★★★★☆（XX分）
-- BOSS：姓名 · 职位 · 刚刚活跃
-- 链接：https://www.zhipin.com/job_detail/{job_id}.html
-- security_id：xxx
+```
+编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id
 ```
 
 如果某个字段信息缺失，使用以下默认值：
-- 具体地址缺失：仅显示「城市·区域」
+- 地点缺失：显示「未知」
 - 发布日期缺失：显示「未知」
 - 经验要求缺失：显示「未知」
-- BOSS 信息缺失：显示「未知 · 未知 · 未知」
-- HR 活跃度缺失：BOSS 行末尾显示「未知」
+- BOSS 姓名缺失：显示「未知」
+- BOSS 职位缺失：显示「未知」
+- HR 活跃度缺失：显示「未知」
 - 薪资为「面议」时：显示「面议」
+- 公司主营业务缺失：显示「未查询到」
+- 公司发展状况缺失：显示「未查询到」
+- 社保人数缺失：显示「未查询到」
+- 字段中含逗号或引号时：用双引号包裹整个字段

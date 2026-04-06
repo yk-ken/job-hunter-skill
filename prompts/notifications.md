@@ -234,7 +234,7 @@ remaining_hours = floor((created_at + 7天 - now) / 小时)
 ```
 Job Hunter 本轮报告（{date}）
 
-发现 {new_count} 个新匹配岗位，已记录到 data/job-candidates.md
+发现 {new_count} 个新匹配岗位，已记录到 data/job-candidates.csv
 
 {job_summaries}
 
@@ -249,11 +249,12 @@ Job Hunter 本轮报告（{date}）
 | `{new_count}` | 本轮新增岗位数量 | `3` |
 | `{job_summaries}` | 每个新岗位的一行摘要（按匹配度降序） | 见下方格式 |
 | `{total_count}` | data/meta.json → total_candidates | `15` |
+| `{social_insurance}` | 天眼查调研获取的社保人数 | `156` |
 
 **岗位摘要格式**（每个岗位一行，按匹配分降序排列）：
 
 ```
-  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 匹配 {score}分
+  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 社保{social_insurance}人 | 匹配 {score}分
 ```
 
 **示例输出**：
@@ -263,7 +264,7 @@ Job Hunter 本轮报告（2026-04-05）
 
 发现 3 个新匹配岗位，已记录到 data/job-candidates.md
 
-  #12  全栈工程师(AI Agent) @ 星辰科技 | 15-23K | 广州·天河区 | 发布于 2026-04-03 | HR刚刚活跃 | 匹配 82分
+  #12  全栈工程师(AI Agent) @ 星辰科技 | 15-23K | 广州·天河区 | 发布于 2026-04-03 | HR刚刚活跃 | 社保156人 | 匹配 82分
   #13  Python工程师（AI Agent开发）@ 四一技术 | 15-30K | 广州·海珠区 | 发布于 2026-04-04 | HR今日活跃 | 匹配 78分
   #14  Go后端开发工程师 @ 云端网络 | 18-25K | 广州·天河区 | 发布于 2026-04-04 | HR3日内活跃 | 匹配 65分
 

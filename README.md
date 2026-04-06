@@ -117,7 +117,7 @@ job-hunter-skill/
 job-search/                  ← 你的工作目录（启动 Claude Code 的位置）
 └── data/
     ├── job-profile.md       #   你的求职画像
-    ├── job-candidates.md    #   候选岗位列表（持续追加）
+    ├── job-candidates.csv   #   候选岗位列表（CSV 格式，可用 Excel 打开）
     └── meta.json            #   运行元数据（去重列表、排除规则、定时任务ID）
 ```
 
