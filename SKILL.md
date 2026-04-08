@@ -268,7 +268,9 @@ Job Hunter 状态：已停止
 
 ### D1. 确认岗位信息
 
-从 `data/job-candidates.csv` 中读取用户指定编号的岗位，展示完整信息给用户确认：
+从 `data/job-candidates.csv` 中读取用户指定编号的岗位，展示完整信息给用户确认。
+
+> **注意**：CSV 中「链接」列存储的是 HYPERLINK 公式格式（如 `"=HYPERLINK(""https://..."",""点击查看"")"`），展示给用户时应提取其中的实际 URL，不要展示公式原文。
 
 ```
 确认排除以下岗位：
@@ -513,6 +515,11 @@ opencli boss detail --security-id {id} -f json
 3. 字段中如含逗号、引号或换行，用双引号包裹整个字段
 4. 编号使用 data/meta.json 中的 next_candidate_number，每记录一个岗位后编号递增 1
 5. 按评分降序排列写入
+6. **链接列使用 HYPERLINK 公式**，使 Excel/WPS 打开时可直接点击跳转。格式为：
+   ```
+   "=HYPERLINK(""https://www.zhipin.com/job_detail/xxx.html"",""点击查看"")"
+   ```
+   整个公式用双引号包裹，公式内部的双引号用 `""` 转义。该字段为 CSV 倒数第二列（security_id 之前）
 
 ### 字段缺失默认值
 
@@ -531,7 +538,7 @@ opencli boss detail --security-id {id} -f json
 ### CSV 行示例
 
 ```csv
-12,全栈工程师(AI Agent),星辰科技,15-23K,广州·天河区,2026-04-03,3-5年,Vue,Python,MySQL,82,★★★★☆,张明,技术总监,刚刚活跃,人工智能应用软件开发,A轮融资,156,https://www.zhipin.com/job_detail/abc123.html,sec_xxx
+12,全栈工程师(AI Agent),星辰科技,15-23K,广州·天河区,2026-04-03,3-5年,Vue,Python,MySQL,82,★★★★☆,张明,技术总监,刚刚活跃,人工智能应用软件开发,A轮融资,156,"=HYPERLINK(""https://www.zhipin.com/job_detail/abc123.html"",""点击查看"")",sec_xxx
 ```
 
 ## 步骤 7：更新 meta.json
@@ -602,4 +609,5 @@ remaining_hours = floor((created_at + 7天 - 当前时间) / 小时)
 - 公司主营业务缺失：显示「未查询到」
 - 公司发展状况缺失：显示「未查询到」
 - 社保人数缺失：显示「未查询到」
+- 链接字段：使用 `=HYPERLINK("url","点击查看")` 公式格式，用双引号包裹，内部双引号用 `""` 转义
 - 字段中含逗号或引号时：用双引号包裹整个字段
