@@ -62,6 +62,7 @@ mkdir ~/job-search && cd ~/job-search
 | `/job-hunter` 或 `/job-hunter start` | 启动定时搜索任务 |
 | `/job-hunter stop` | 停止搜索（数据保留，可随时恢复） |
 | `/job-hunter status` | 查看运行状态和各分类统计 |
+| `/job-hunter update` | 更新 Skill 到最新版本 |
 | `/job-hunter exclude` | 查看排除列表 |
 | `/job-hunter practice` | 查看练手列表 |
 | `/job-hunter target` | 查看目标列表 |

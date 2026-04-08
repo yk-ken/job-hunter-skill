@@ -17,6 +17,7 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 | `/job-hunter start` | 启动定时搜索任务 |
 | `/job-hunter stop` | 停止定时搜索任务，数据保留 |
 | `/job-hunter status` | 查看当前运行状态 |
+| `/job-hunter update` | 更新 Job Hunter Skill 到最新版本 |
 | `/job-hunter exclude` | 查看排除列表 |
 | 用户说「排除编号X」 | 触发排除流程（自然语言触发） |
 | `/job-hunter practice` | 查看练手列表 |
@@ -523,6 +524,27 @@ Job Hunter 状态：已停止
 |---|---------|------|------|------|---------|
 | 1 | xxx     | xxx  | xxx  | xxx  | xxx     |
 ```
+
+---
+
+## 操作 I：更新 Skill
+
+当用户运行 `/job-hunter update` 时，执行以下流程。
+
+1. 在 skill 安装目录（`${CLAUDE_SKILL_DIR}`）中执行 `git pull`
+2. 根据结果输出：
+   - **更新成功**：
+     ```
+     Job Hunter 已更新到最新版本！
+     用户数据未受影响，仍在 data/ 目录中。
+     ```
+   - **已是最新**：
+     ```
+     Job Hunter 已是最新版本，无需更新。
+     ```
+   - **更新失败**（网络问题等）：提示错误信息，建议用户检查网络后重试
+
+> **注意**：此操作仅更新 skill 本身的代码和 prompt 文件，不会修改用户数据（`data/` 目录）。如果新版本引入了新文件，下次启动时步骤 1.5 的升级检查会自动补全。
 
 ---
 
