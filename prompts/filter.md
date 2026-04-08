@@ -34,7 +34,7 @@
 
 ### Step 2: 排除关键词
 
-检查岗位名称（`job_name`）和岗位描述（`job_description`）是否包含 `meta.json.exclude_keywords` 中的任一关键词。匹配不区分大小写。
+检查岗位名称（`job_name`）和技能要求（`skills` / `tags`）是否包含 `meta.json.exclude_keywords` 中的任一关键词。匹配不区分大小写。
 
 - 命中任一关键词 → 排除，原因标记 `EXCLUDE_KEYWORD:<命中的关键词>`
 - 未命中 → 通过，继续下一步
