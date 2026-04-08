@@ -297,6 +297,26 @@ opencli boss search "测试" --limit 1 -f json
 编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id,排除原因,排除日期
 ```
 
+### 4.1.6 创建练手文件
+
+写入文件路径：`data/job-practice.csv`
+
+文件内容（CSV 表头行）：
+
+```csv
+编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id,备注,分类日期
+```
+
+### 4.1.7 创建目标文件
+
+写入文件路径：`data/job-target.csv`
+
+文件内容（CSV 表头行）：
+
+```csv
+编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id,备注,分类日期
+```
+
 ### 4.2 创建运行元数据文件
 
 写入文件路径：`data/meta.json`
@@ -315,6 +335,10 @@ opencli boss search "测试" --limit 1 -f json
   "search_interval_minutes": 30,
   "recorded_job_ids": [],
   "exclude_keywords": [],
+  "practice_count": 0,
+  "target_count": 0,
+  "next_practice_number": 1,
+  "next_target_number": 1,
   "search_keywords": [
     "{从画像的搜索关键词部分逐条写入}"
   ],
@@ -337,9 +361,9 @@ opencli boss search "测试" --limit 1 -f json
 运行数据已初始化：
   - data/job-candidates.csv — 候选岗位记录文件（CSV 格式，可用 Excel 打开）
   - data/job-excluded.csv — 排除岗位归档文件
+  - data/job-practice.csv — 练手岗位归档文件
+  - data/job-target.csv — 目标岗位归档文件
   - data/meta.json — 运行元数据
-
-接下来将创建定时搜索任务。
 ```
 
 初始化完成后，流程继续进入环节 4（创建定时任务），由 SKILL.md 主流程接管。
