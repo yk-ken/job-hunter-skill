@@ -4,7 +4,7 @@
 
 **Goal:** 为 job-hunter skill 增加候选岗位排除机制，支持人工审核后排除不合适岗位，并将排除原因反馈到搜索条件优化中。
 
-**Architecture:** 三个独立的文件修改任务，互不依赖，可完全并行执行。每个任务修改一个文件的不同部分。
+**Architecture:** 三个独立的文件修改任务，互不依赖，可完全并行执行。每个任务修改不同文件。老用户升级检查作为 Task 3 的一部分集成到 SKILL.md 主流程中。
 
 **Tech Stack:** Markdown skill 文件（SKILL.md、prompts/*.md），CSV 数据文件。
 
@@ -16,9 +16,9 @@
 |------|------|------|
 | `prompts/intake.md` | 修改 | 新用户引导流程中初始化 `job-excluded.csv` |
 | `prompts/filter.md` | 修改 | 筛选流程增加排除列表检查（Step 1.5） |
-| `SKILL.md` | 修改 | 触发条件表 + 操作 D 章节 + 定时任务步骤 4 更新 |
+| `SKILL.md` | 修改 | 触发条件表 + 操作 D/E 章节 + 定时任务步骤 4 更新 + 老用户升级检查 |
 
-三个任务完全独立，可并行执行。
+Task 1/2/3 修改不同文件，可完全并行执行。Task 3 内部包含老用户升级检查机制。
 
 ---
 
@@ -162,7 +162,62 @@ git commit -m "feat: add excluded list check in filter pipeline"
 | 用户说「排除编号X」 | 触发排除流程（自然语言触发） |
 ```
 
-- [ ] **Step 2: 在操作 C 之后插入操作 D**
+- [ ] **Step 2: 在步骤 1 和步骤 3 之间插入步骤 1.5（老用户升级检查）**
+
+找到 SKILL.md 主入口逻辑中步骤 1 的内容：
+
+```markdown
+- **不存在** → 进入「新用户引导流程」（步骤 2）
+- **存在** → 跳到「步骤 3：读取运行状态」
+```
+
+替换为：
+
+```markdown
+- **不存在** → 进入「新用户引导流程」（步骤 2）
+- **存在** → 继续步骤 1.5
+```
+
+然后在步骤 1 结束后、步骤 2 之前，插入：
+
+```markdown
+### 步骤 1.5：老用户升级检查
+
+当 `data/job-profile.md` 存在时（老用户），检查 `data/` 目录下是否缺少必要文件。
+
+当前必要文件清单：
+
+| 文件 | 说明 |
+|------|------|
+| `data/job-candidates.csv` | 候选岗位记录 |
+| `data/job-excluded.csv` | 排除岗位归档 |
+| `data/job-profile.md` | 用户求职画像 |
+| `data/meta.json` | 运行元数据 |
+
+检查逻辑：
+
+1. 逐项检查上述文件是否存在
+2. 如果全部存在 → 跳到步骤 3
+3. 如果有缺失 → 自动创建缺失文件（使用默认初始内容），并通知用户：
+
+```
+检测到以下文件缺失，已自动补充：
+
+  [已创建] {缺失文件名} — {文件说明}
+
+这可能是因为 skill 更新引入了新文件。你的现有数据未受影响。
+```
+
+各缺失文件的默认初始内容：
+
+- `data/job-candidates.csv`：写入表头行（`编号,岗位名称,公司名,...,security_id`）
+- `data/job-excluded.csv`：写入表头行（`编号,岗位名称,公司名,...,排除原因,排除日期`）
+- `data/meta.json`：不自动创建（缺少此文件说明引导流程未完成，应视为异常，提示用户重新运行引导）
+
+检查完成后，继续步骤 3。
+```
+
+- [ ] **Step 3: 在操作 C 之后插入操作 D（原 Step 2）**
 
 找到操作 C（status）的完整内容结束位置，即 `---` 分隔线和 `## 定时任务执行指令` 之间，插入操作 D：
 
@@ -275,7 +330,7 @@ git commit -m "feat: add excluded list check in filter pipeline"
 ```
 ```
 
-- [ ] **Step 3: 更新定时任务步骤 4 的筛选描述**
+- [ ] **Step 4: 更新定时任务步骤 4 的筛选描述（原 Step 3）**
 
 找到定时任务执行指令中的步骤 4：
 
@@ -297,7 +352,7 @@ git commit -m "feat: add excluded list check in filter pipeline"
 输入：步骤 3 获取的岗位详情列表 + data/job-profile.md + data/meta.json + data/job-excluded.csv
 ```
 
-- [ ] **Step 4: 更新定时任务步骤 4 的筛选步骤列表**
+- [ ] **Step 5: 更新定时任务步骤 4 的筛选步骤列表（原 Step 4）**
 
 找到步骤 4 中的筛选步骤列表：
 
@@ -316,9 +371,9 @@ git commit -m "feat: add excluded list check in filter pipeline"
 2. 排除关键词：岗位名/描述含 exclude_keywords → 排除
 ```
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 6: 提交（原 Step 5）**
 
 ```bash
 git add SKILL.md
-git commit -m "feat: add job exclusion workflow and update filter step in SKILL.md"
+git commit -m "feat: add job exclusion workflow, upgrade check, and update filter step in SKILL.md"
 ```
