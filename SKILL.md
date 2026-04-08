@@ -19,6 +19,11 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 | `/job-hunter status` | 查看当前运行状态 |
 | `/job-hunter exclude` | 查看排除列表 |
 | 用户说「排除编号X」 | 触发排除流程（自然语言触发） |
+| `/job-hunter practice` | 查看练手列表 |
+| `/job-hunter target` | 查看目标列表 |
+| 用户说「练手编号X」 | 触发分类流程，分类为练手 |
+| 用户说「目标编号X」 | 触发分类流程，分类为目标 |
+| 用户说「标记编号X」 | 触发分类流程，询问分类类型 |
 
 ---
 
@@ -64,6 +69,8 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 |------|------|
 | `data/job-candidates.csv` | 候选岗位记录 |
 | `data/job-excluded.csv` | 排除岗位归档 |
+| `data/job-practice.csv` | 练手岗位归档 |
+| `data/job-target.csv` | 目标岗位归档 |
 | `data/job-profile.md` | 用户求职画像 |
 | `data/meta.json` | 运行元数据 |
 
@@ -85,6 +92,8 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 
 - `data/job-candidates.csv`：写入表头行（`编号,岗位名称,公司名,...,security_id`）
 - `data/job-excluded.csv`：写入表头行（`编号,岗位名称,公司名,...,排除原因,排除日期`）
+- `data/job-practice.csv`：写入表头行（`编号,岗位名称,公司名,...,备注,分类日期`）
+- `data/job-target.csv`：写入表头行（`编号,岗位名称,公司名,...,备注,分类日期`）
 - `data/meta.json`：不自动创建（缺少此文件说明引导流程未完成，应视为异常，提示用户重新运行引导）
 
 检查完成后，继续步骤 3。
@@ -112,6 +121,10 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 - `last_run_time`：上次运行时间
 - `search_interval_minutes`：搜索间隔
 - `next_candidate_number`：下一个岗位编号
+- `practice_count`：已标记为练手的岗位数
+- `target_count`：已标记为目标的岗位数
+- `next_practice_number`：下一个练手编号
+- `next_target_number`：下一个目标编号
 
 ### 步骤 4：根据参数执行操作
 
