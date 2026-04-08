@@ -1,7 +1,18 @@
 ### A1. 检查是否已在运行
 
 读取 `data/meta.json` 的 `cron_job_id`：
-- 如果不为 null，说明已有定时任务在运行。向用户提示：
+- 如果为 null，继续步骤 A2。
+- 如果不为 null，执行 prompt 变更检测：
+
+#### Prompt 变更检测
+
+1. 读取 `${CLAUDE_SKILL_DIR}/prompts/cron-task.md`
+2. 提取其中 code block 内的内容（即第一个 `` ``` `` 到第二个 `` ``` `` 之间的文本，不含 ``` 标记本身）
+3. 将提取内容中的 `${CLAUDE_SKILL_DIR}` 替换为 skill 实际安装路径
+4. 读取 `data/cron-prompt-snapshot.md`。如果文件不存在，视为不一致
+5. 逐字对比两段文本
+
+**如果一致**：向用户提示：
 
 ```
 Job Hunter 已在运行中（任务 ID：{cron_job_id}）。
@@ -9,6 +20,16 @@ Job Hunter 已在运行中（任务 ID：{cron_job_id}）。
 ```
 
 然后结束。
+
+**如果不一致**（包括快照文件不存在）：向用户提示：
+
+```
+Skill 已更新，当前定时任务的执行逻辑与最新版本不一致。
+建议重建定时任务以使用最新逻辑。是否重建？
+```
+
+- 用户确认 → 自动读取 `${CLAUDE_SKILL_DIR}/prompts/operations/stop.md` 执行停止操作，然后继续步骤 A2（无需用户再次干预）
+- 用户拒绝 → 保持旧任务继续运行，不更新快照，结束
 
 ### A2. 读取搜索间隔配置
 
@@ -49,13 +70,17 @@ Job Hunter 已在运行中（任务 ID：{cron_job_id}）。
 - **durable**: `true`（最长运行 7 天）
 - **间隔**: `data/meta.json` 中的 `search_interval_minutes`（分钟）
 
-CronCreate 的 prompt 内容为下方「定时任务执行指令」章节的完整内容。
+CronCreate 的 prompt 内容来自 `${CLAUDE_SKILL_DIR}/prompts/cron-task.md`：读取该文件，提取其中 code block 内的内容（第一个 `` ``` `` 到第二个 `` ``` `` 之间的文本，不含 ``` 标记本身），将 `${CLAUDE_SKILL_DIR}` 替换为 skill 实际安装路径后作为 prompt 传入。
 
 ### A5. 更新 meta.json
 
 CronCreate 创建成功后，更新 `data/meta.json`：
 - `cron_job_id` = 创建返回的任务 ID
 - `updated_at` = 当前 ISO 时间
+
+### A5.5. 写入 prompt 快照
+
+将实际传给 CronCreate 的 prompt 文本（已提取 code block 内容、已替换 `${CLAUDE_SKILL_DIR}` 为实际路径）写入 `data/cron-prompt-snapshot.md`。此文件用于后续启动时的 prompt 变更检测。
 
 ### A6. 输出启动成功提示
 
