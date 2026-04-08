@@ -10,8 +10,8 @@
 
 | 来源 | 命令 | 说明 |
 |------|------|------|
-| 关键词搜索 | `opencli boss search "{关键词}" -f json --limit 30` | 按关键词精确搜索，每个关键词返回最多 30 条 |
-| 推荐岗位 | `opencli boss recommend --limit 20` | Boss 直聘个性化推荐，最多 20 条 |
+| 关键词搜索 | `opencli boss search "{关键词}" -f json --limit 15 --page {页码}` | 按关键词精确搜索，每个关键词返回最多 15 条，页码逐轮递增 |
+| 推荐岗位 | `opencli boss recommend --limit 10` × 3 次 | Boss 直聘个性化推荐，调用 3 次合并去重，最多 30 条 |
 
 **合并规则**：将所有来源的结果合并为一个数组，按 `security_id` 去重（保留首次出现的记录）。
 
@@ -36,22 +36,78 @@
 
 **执行方式**：
 
-1. 读取 `data/meta.json`，提取 `search_keywords` 数组
-2. 遍历数组中的每个关键词，对每个关键词执行一次搜索命令
-3. 关键词格式为 `"{岗位方向} {城市}"`，直接作为 opencli search 的查询参数使用
-4. 所有关键词搜索完成后，再执行一次 recommend 获取推荐岗位
+1. 读取 `data/meta.json`，提取 `search_keywords` 数组和 `search_pages` 对象
+2. 关键词格式为 `"{岗位方向} {城市}"`，直接作为 opencli search 的查询参数使用
+3. 每个关键词携带各自的页码（从 `search_pages` 中读取，首次为 1）
+4. 所有关键词搜索完成后，执行 3 次 recommend 获取推荐岗位，合并去重
+
+**页码轮换策略**：
+
+每个关键词独立追踪页码，存储在 `meta.json` 的 `search_pages` 对象中：
+
+```json
+{
+  "search_pages": {
+    "全栈开发 广州": 3,
+    "AI开发 广州": 1
+  }
+}
+```
+
+- 搜索返回有结果 → 该关键词 `page + 1`
+- 搜索返回 0 条结果 → 该关键词 `page` 重置为 1，**立即用 page 1 补搜一次**，确保本轮不跑空。如果补搜 page 1 也返回 0 条，保持 page=1 不再重试，记录日志。如果补搜有结果，page 更新为 2（下次从第 2 页开始）。补搜前等待 2 秒。
+- 如果某个关键词在 `search_pages` 中不存在，默认从第 1 页开始
+
+**分批并行策略**：
+
+为避免短时间大量请求触发平台风控，搜索采用分批执行：
+- 关键词搜索每 **2 个**为一组，组内两个命令并行执行
+- 每组完成后 **等待 5 秒**再执行下一组
+- `recommend` 调用 **3 次**，单独作为最后一批，串行执行，每次之间 **随机等待 3-5 秒**
 
 **伪代码**：
 
 ```
 all_results = []
+pages = meta.search_pages  # {"全栈开发 广州": 3, "AI开发 广州": 1, ...}
 
-for keyword in meta.search_keywords:
-    result = run("opencli boss search \"{keyword}\" -f json --limit 30")
-    all_results.append(result)
+# 分批执行关键词搜索，每批 2 个并行
+keywords = meta.search_keywords
+for i in range(0, len(keywords), 2):
+    batch = keywords[i:i+2]
+    batch_results = parallel([
+        run(f"opencli boss search \"{kw}\" -f json --limit 15 --page {pages.get(kw, 1)}")
+        for kw in batch
+    ])
 
-recommend_result = run("opencli boss recommend --limit 20")
-all_results.append(recommend_result)
+    # 页码处理：有结果 +1，空结果重置为 1 并补搜
+    for idx, kw in enumerate(batch):
+        if len(batch_results[idx]) > 0:
+            pages[kw] = pages.get(kw, 1) + 1
+            all_results.append(batch_results[idx])
+        else:
+            pages[kw] = 1
+            sleep(2)  # 补搜前短暂延迟
+            retry = run(f"opencli boss search \"{kw}\" -f json --limit 15 --page 1")
+            if len(retry) > 0:
+                pages[kw] = 2
+            # 补搜也返回 0 条时保持 page=1，不再重试
+            all_results.append(retry)
+
+    if i + 2 < len(keywords):
+        sleep(5)  # 批次间等待 5 秒
+
+# recommend 调用 3 次，随机间隔 3-5 秒
+for _ in range(3):
+    recommend_result = run("opencli boss recommend --limit 10")
+    if recommend_result is not None:
+        all_results.append(recommend_result)
+    else:
+        log("recommend 调用失败，继续尝试剩余次数")
+    sleep(random(3, 5))
+
+# 更新 meta.json 的 search_pages
+meta.search_pages = pages
 
 merged = deduplicate(all_results, key="security_id")
 ```
@@ -107,7 +163,7 @@ opencli 命令可能返回以下错误退出码：
 
 ### 4.2 recommend 失败
 
-如果 `opencli boss recommend` 失败，跳过推荐来源，仅使用关键词搜索的结果。记录推荐获取失败的错误信息。
+如果单次 `opencli boss recommend` 失败，记录错误日志，继续尝试剩余次数。如果全部 3 次均失败，跳过推荐来源，仅使用关键词搜索的结果。
 
 ### 4.3 所有搜索均失败
 
@@ -122,7 +178,7 @@ opencli 命令可能返回以下错误退出码：
 每个失败的搜索记录以下信息：
 
 ```
-搜索失败：opencli boss search "{keyword}" -f json --limit 30
+搜索失败：opencli boss search "{keyword}" -f json --limit 15
 退出码：{exit_code}
 错误输出：{stderr}
 时间：{timestamp}
@@ -132,10 +188,11 @@ opencli 命令可能返回以下错误退出码：
 
 ## 五、频率与风控
 
-- 每个关键词搜索之间不需要额外延迟（单轮内连续执行）
+- 关键词搜索每 2 个并行执行，批次间等待 5 秒，降低短时间内大量请求的风险
+- recommend 3 次串行执行，每次间隔随机 3-5 秒
 - 搜索间隔由 `data/meta.json` 的 `search_interval_minutes` 控制（定时任务层面）
 - 默认间隔 30 分钟，低于此值会触发警告（见 prompts/notifications.md）
-- 单轮搜索的 opencli 调用次数 = `len(search_keywords) + 1`（关键词数 + 推荐），注意总调用量
+- 单轮搜索的 opencli 调用次数 = `len(search_keywords) + 3`（关键词数 + 推荐 3 次），注意总调用量
 
 ---
 

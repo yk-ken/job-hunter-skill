@@ -380,7 +380,7 @@ Job Hunter 状态：已停止
 ---
 
 ```
-你是 Job Hunter 定时任务执行器。每次被触发时，严格按照以下 9 个步骤执行。所有文件路径基于 skill 安装目录。
+你是 Job Hunter 定时任务执行器。每次被触发时，严格按照以下 8 个步骤执行。所有文件路径基于 skill 安装目录。
 
 ## 步骤 1：读取配置
 
@@ -394,11 +394,13 @@ Job Hunter 状态：已停止
 
 读取 ${CLAUDE_SKILL_DIR}/prompts/search-strategy.md，按照其中的策略执行岗位搜索：
 
-1. 从 data/meta.json 提取 search_keywords 数组
-2. 对每个关键词执行：opencli boss search "{keyword}" -f json --limit 30
-3. 执行推荐获取：opencli boss recommend --limit 20
-4. 将所有结果按 security_id 合并去重
-5. 与 data/meta.json 的 recorded_job_ids 对比，筛选出新出现的岗位
+1. 从 data/meta.json 提取 search_keywords 数组和 search_pages 对象
+2. 对每个关键词执行：opencli boss search "{keyword}" -f json --limit 15 --page {该关键词当前页码}
+3. 页码处理：有结果则 page+1，返回 0 条则重置为 1 并立即补搜 page 1
+4. 执行推荐获取 3 次：opencli boss recommend --limit 10（3 次结果合并去重，每次间隔 3-5 秒随机）
+5. 在内存中计算各关键词的页码变化（实际写入在步骤 7）
+6. 将所有结果按 security_id 合并去重
+7. 与 data/meta.json 的 recorded_job_ids 对比，筛选出新出现的岗位
 
 如果单个关键词搜索失败（退出码 69/77/75），记录错误日志，跳过该关键词，继续其他搜索。
 如果所有搜索均失败，输出错误报告，不中断定时任务（下一轮会重试）。
@@ -423,39 +425,6 @@ opencli boss detail --security-id {id} -f json
 - job_id（用于生成链接）
 
 如果单个岗位详情获取失败，跳过该岗位，记录错误，继续处理下一个。
-
-## 步骤 3.5：公司调研
-
-对步骤 3 中获取到详情的每个岗位所属公司，逐一执行天眼查调研，补充公司维度的信息。
-
-### 调研方式
-
-使用 WebSearch 搜索「天眼查 {公司名}」，从搜索结果中抓取公司页面，提取以下信息：
-
-| 字段 | 来源 | 默认值（获取失败时） |
-|------|------|---------------------|
-| 公司主营业务 | 天眼查「经营范围」或「主营业务」 | 未查询到 |
-| 公司发展状况 | 天眼查「融资信息」/「企业状态」/「发展阶段」 | 未查询到 |
-| 社保人数 | 天眼查「参保人数」字段 | 未查询到 |
-
-### 执行规则
-
-1. 对每个公司名执行 WebSearch：`天眼查 {company_name}`
-2. 如果搜索结果有天眼查页面链接，用 WebReader 抓取页面内容
-3. 从页面中提取三个字段的信息
-4. 如果搜索失败或页面无法访问，三个字段均填「未查询到」
-5. 将提取的信息附加到对应岗位的数据中，传递给后续筛选和评分步骤
-6. 控制请求频率：每个公司搜索间隔至少 3 秒，避免触发反爬
-
-### 信息提取示例
-
-```
-搜索：天眼查 星辰科技
-结果：
-  公司主营业务：人工智能应用软件开发、AI Agent 平台
-  公司发展状况：A轮融资、快速发展中
-  社保人数：156
-```
 
 ## 步骤 4：筛选
 
@@ -485,7 +454,7 @@ opencli boss detail --security-id {id} -f json
 - 技术栈匹配（20分）：画像技术栈与岗位要求的重叠度
 - 地点匹配（15分）：优先区域=15，同城市非优先=10，远程=12，不匹配=0
 - HR 活跃度（10分）：刚刚活跃=10，今日活跃=8，3日内活跃=5，本周活跃=2，无信息=5
-- 公司规模（10分）：匹配偏好=10，100人以上=8，50-99人=5，50人以下(开发主体)=3，其他=1
+- 公司规模（10分）：10000人以上=10，1000-9999人=9，500-999人=8，100-499人=6，50-99人=4，20-49人=3，0-19人=2，信息缺失=5
 
 星级映射：
 - 90-100：★★★★★
@@ -546,6 +515,7 @@ opencli boss detail --security-id {id} -f json
 更新 data/meta.json 的以下字段：
 
 - recorded_job_ids：将本轮通过筛选的所有岗位的 security_id 追加到数组中（不包括被筛选排除的岗位，避免重复推荐）
+- search_pages：将步骤 2 中计算好的各关键词页码变化写入（有结果的 +1，空结果重置为 1 并补搜后的页码）
 - last_run_time：当前 ISO 时间
 - run_count：原值 + 1
 - total_candidates：原值 + 本轮新记录的岗位数
@@ -564,7 +534,7 @@ opencli boss detail --security-id {id} -f json
 - {date} = 当前日期（YYYY-MM-DD）
 - {new_count} = 本轮新记录的岗位数
 - {job_summaries} = 每个新岗位的一行摘要（按匹配分降序），格式：
-  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | 社保{social_insurance}人 | 匹配 {score}分
+  #{number}  {job_name} @ {company} | {salary} | {location} | 发布于 {post_date} | HR{active_time} | {company_scale} | 匹配 {score}分
 - {total_count} = meta.json 中的 total_candidates
 
 如果本轮无新岗位（new_count = 0）：
