@@ -17,6 +17,8 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 | `/job-hunter start` | 启动定时搜索任务 |
 | `/job-hunter stop` | 停止定时搜索任务，数据保留 |
 | `/job-hunter status` | 查看当前运行状态 |
+| `/job-hunter exclude` | 查看排除列表 |
+| 用户说「排除编号X」 | 触发排除流程（自然语言触发） |
 
 ---
 
@@ -50,7 +52,42 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 读取 `data/job-profile.md` 是否存在：
 
 - **不存在** → 进入「新用户引导流程」（步骤 2）
-- **存在** → 跳到「步骤 3：读取运行状态」
+- **存在** → 继续步骤 1.5
+
+### 步骤 1.5：老用户升级检查
+
+当 `data/job-profile.md` 存在时（老用户），检查 `data/` 目录下是否缺少必要文件。
+
+当前必要文件清单：
+
+| 文件 | 说明 |
+|------|------|
+| `data/job-candidates.csv` | 候选岗位记录 |
+| `data/job-excluded.csv` | 排除岗位归档 |
+| `data/job-profile.md` | 用户求职画像 |
+| `data/meta.json` | 运行元数据 |
+
+检查逻辑：
+
+1. 逐项检查上述文件是否存在
+2. 如果全部存在 → 跳到步骤 3
+3. 如果有缺失 → 自动创建缺失文件（使用默认初始内容），并通知用户：
+
+```
+检测到以下文件缺失，已自动补充：
+
+  [已创建] {缺失文件名} — {文件说明}
+
+这可能是因为 skill 更新引入了新文件。你的现有数据未受影响。
+```
+
+各缺失文件的默认初始内容：
+
+- `data/job-candidates.csv`：写入表头行（`编号,岗位名称,公司名,...,security_id`）
+- `data/job-excluded.csv`：写入表头行（`编号,岗位名称,公司名,...,排除原因,排除日期`）
+- `data/meta.json`：不自动创建（缺少此文件说明引导流程未完成，应视为异常，提示用户重新运行引导）
+
+检查完成后，继续步骤 3。
 
 ### 步骤 2：新用户引导流程
 
@@ -60,7 +97,7 @@ description: "自动从 Boss 直聘发现、筛选、记录合适岗位。使用
 1. 环境检测（Node.js、opencli、Browser Bridge、Boss 直聘登录）
 2. 分步问答收集求职画像（4 组问题）
 3. 生成 `data/job-profile.md`
-4. 初始化 `data/job-candidates.csv` 和 `data/meta.json`
+4. 初始化 `data/job-candidates.csv`、`data/job-excluded.csv` 和 `data/meta.json`
 
 **环境检测未通过时**：读取 `${CLAUDE_SKILL_DIR}/prompts/notifications.md` 中的「环境检测未通过」模板，填充检测结果后输出。不继续后续流程。
 
@@ -225,6 +262,115 @@ Job Hunter 状态：已停止
 
 ---
 
+## 操作 D：排除岗位
+
+当用户说「排除编号X」或表达类似意图时，执行以下流程。
+
+### D1. 确认岗位信息
+
+从 `data/job-candidates.csv` 中读取用户指定编号的岗位，展示完整信息给用户确认：
+
+```
+确认排除以下岗位：
+  编号：{number}
+  岗位：{job_name}
+  公司：{company}
+  薪资：{salary}
+  地点：{location}
+```
+
+如果指定编号不存在，提示用户并终止。
+
+### D2. 询问排除原因
+
+使用 AskUserQuestion 询问用户：
+
+```
+排除原因是什么？
+```
+
+等待用户回复。
+
+### D3. 确认条件更新方案
+
+根据用户提供的排除原因，分析并使用 AskUserQuestion 询问条件更新方式：
+
+```
+是否将此排除原因应用到搜索条件？请选择：
+
+1. 加入排除关键词 — 将「{提取的关键词}」加入 meta.json 的 exclude_keywords，以后所有含该词的岗位直接被筛掉
+2. 调整画像偏好 — 更新 data/job-profile.md 的相关偏好（如区域、薪资等）
+3. 仅排除此岗位 — 不更新任何条件，只排除这一个
+```
+
+等待用户选择。根据选择更新对应文件：
+
+**选择 1**：将提取的关键词追加到 `meta.json` 的 `exclude_keywords` 数组。
+**选择 2**：根据原因更新 `data/job-profile.md` 的对应字段。
+**选择 3**：不更新条件文件。
+
+如果原因映射关系不明确，向用户追问具体要调整什么。
+
+### D4. 执行排除
+
+执行以下变更：
+
+1. **创建排除列表文件**（如果 `data/job-excluded.csv` 不存在）：
+   写入表头行：
+   ```
+   编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id,排除原因,排除日期
+   ```
+
+2. **追加到排除列表**：
+   读取 `data/job-excluded.csv` 现有行数（不含表头），新行的编号 = 现有行数 + 1。将该岗位的完整信息 + 排除原因 + 当天日期（YYYY-MM-DD）追加一行到 `data/job-excluded.csv`。
+
+3. **从候选列表移除**：
+   从 `data/job-candidates.csv` 中删除该编号对应的行。
+
+4. **重排候选列表编号**：
+   将 `data/job-candidates.csv` 剩余行按原顺序重新编号为 1, 2, 3, ...。
+
+5. **更新 meta.json**：
+   - `total_candidates` 减 1
+   - `next_candidate_number` = 候选列表新总行数 + 1
+   - `updated_at` = 当前 ISO 时间
+
+### D5. 输出排除确认
+
+```
+已排除岗位：
+  {job_name} @ {company} | {salary} | {location}
+  排除原因：{reason}
+  条件更新：{更新内容摘要，如"已将'外包'加入排除关键词"或"仅排除此岗位"}
+
+候选列表剩余 {total_candidates} 个岗位。
+排除列表共 {excluded_count} 个岗位。
+```
+
+---
+
+## 操作 E：查看排除列表
+
+当用户运行 `/job-hunter exclude` 时，读取 `data/job-excluded.csv`。
+
+如果文件不存在或仅有表头行：
+
+```
+排除列表为空，暂无被排除的岗位。
+```
+
+如果有排除记录，以表格形式展示：
+
+```
+排除列表（共 {count} 个岗位）：
+
+| # | 岗位名称 | 公司 | 薪资 | 排除原因 | 排除日期 |
+|---|---------|------|------|---------|---------|
+| 1 | xxx     | xxx  | xxx  | xxx     | xxx     |
+```
+
+---
+
 ## 定时任务执行指令
 
 以下是 CronCreate 创建的定时任务每次执行时的完整指令。这段内容作为 CronCreate 的 prompt 参数传入。
@@ -313,10 +459,11 @@ opencli boss detail --security-id {id} -f json
 
 读取 ${CLAUDE_SKILL_DIR}/prompts/filter.md，按照其中的规则执行筛选：
 
-输入：步骤 3 获取的岗位详情列表 + data/job-profile.md + data/meta.json
+输入：步骤 3 获取的岗位详情列表 + data/job-profile.md + data/meta.json + data/job-excluded.csv
 
 按以下顺序执行筛选（任一步骤不通过则排除）：
 1. ID 去重：security_id 在 recorded_job_ids 中 → 排除
+1.5. 排除列表：security_id 在 job-excluded.csv 中 → 排除
 2. 排除关键词：岗位名/描述含 exclude_keywords → 排除
 3. 城市区域：不匹配画像中的城市/区域偏好 → 排除
 4. 薪资下限：低于画像最低薪资 → 排除

@@ -287,6 +287,16 @@ opencli boss search "测试" --limit 1 -f json
 编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id
 ```
 
+### 4.1.5 创建排除列表文件
+
+写入文件路径：`data/job-excluded.csv`
+
+文件内容（CSV 表头行）：
+
+```csv
+编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id,排除原因,排除日期
+```
+
 ### 4.2 创建运行元数据文件
 
 写入文件路径：`data/meta.json`
@@ -325,6 +335,7 @@ opencli boss search "测试" --limit 1 -f json
 ```
 运行数据已初始化：
   - data/job-candidates.csv — 候选岗位记录文件（CSV 格式，可用 Excel 打开）
+  - data/job-excluded.csv — 排除岗位归档文件
   - data/meta.json — 运行元数据
 
 接下来将创建定时搜索任务。

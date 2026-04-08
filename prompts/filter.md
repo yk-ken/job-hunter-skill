@@ -8,6 +8,7 @@
 |------|------|
 | `data/job-profile.md` | 用户求职画像（城市、薪资、休息制度、公司偏好等） |
 | `data/meta.json` | 运行元数据（`recorded_job_ids`、`exclude_keywords`） |
+| `data/job-excluded.csv` | 已排除岗位的 `security_id` 列表 |
 
 ---
 
@@ -21,6 +22,15 @@
 
 - 已存在 → 排除，原因标记 `DUPLICATE`
 - 不存在 → 通过，继续下一步
+
+### Step 1.5: 排除列表检查
+
+读取 `data/job-excluded.csv` 中所有 `security_id`。
+
+- 岗位的 `security_id` 在排除列表中 → 排除，原因标记 `EXCLUDED`
+- 不在排除列表中 → 通过，继续下一步
+
+如果 `job-excluded.csv` 不存在或为空（仅表头行），跳过此步骤。
 
 ### Step 2: 排除关键词
 
@@ -183,6 +193,7 @@
 
 排除原因枚举值：
 - `DUPLICATE` — 已记录过的岗位
+- `EXCLUDED` — 用户人工排除的岗位
 - `EXCLUDE_KEYWORD:<关键词>` — 命中排除关键词
 - `LOCATION_MISMATCH` — 地点不匹配
 - `SALARY_BELOW_MIN:<岗位下限>_<用户最低>` — 薪资低于下限
@@ -199,3 +210,4 @@
 4. 如果 `meta.json.recorded_job_ids` 为空数组，Step 1 等价于全部通过
 5. 如果 `meta.json.exclude_keywords` 为空数组，Step 2 等价于全部通过
 6. 每轮筛选结束后，将通过的岗位的 `security_id` 追加到 `meta.json.recorded_job_ids`，防止下一轮重复推荐
+7. `job-excluded.csv` 中的岗位在 Step 1.5 被排除，不会进入候选列表。`recorded_job_ids` 已包含这些 ID，此步骤作为额外安全网
