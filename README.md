@@ -115,13 +115,24 @@ mkdir ~/job-search && cd ~/job-search
 
 ```
 job-hunter-skill/
-├── SKILL.md                 # 主入口，完整流程定义
+├── SKILL.md                 # 主入口，路由分发
 ├── prompts/                 # 各环节行为模板
 │   ├── intake.md            #   新用户引导问答
-│   ├── search-strategy.md   #   搜索策略（关键词组合、来源）
-│   ├── filter.md            #   筛选规则（硬条件过滤）
-│   ├── scorer.md            #   评分规则（多维加权打分）
-│   └── notifications.md     #   模板化提示（启动/停止/警告/报告）
+│   ├── search-strategy.md   #   搜索策略
+│   ├── filter.md            #   筛选规则
+│   ├── scorer.md            #   评分规则
+│   ├── cron-task.md         #   定时任务执行指令
+│   ├── notifications.md     #   模板化提示
+│   └── operations/          #   按需加载的操作指令
+│       ├── start.md         #   启动定时任务
+│       ├── stop.md          #   停止定时任务
+│       ├── status.md        #   查看状态
+│       ├── exclude.md       #   排除岗位
+│       ├── view-exclude.md  #   查看排除列表
+│       ├── classify.md      #   练手/目标分类
+│       ├── view-practice.md #   查看练手列表
+│       ├── view-target.md   #   查看目标列表
+│       └── update.md        #   更新 Skill
 ├── docs/
 │   ├── PRD.md               #   产品需求文档
 │   └── plan.md              #   实施计划
