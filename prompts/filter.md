@@ -209,5 +209,5 @@
 3. 被排除的岗位不计入 `meta.json.recorded_job_ids`，不计入候选人列表
 4. 如果 `meta.json.recorded_job_ids` 为空数组，Step 1 等价于全部通过
 5. 如果 `meta.json.exclude_keywords` 为空数组，Step 2 等价于全部通过
-6. 每轮筛选结束后，将通过的岗位的 `security_id` 追加到 `meta.json.recorded_job_ids`，防止下一轮重复推荐
+6. 每轮筛选结束后，将通过的岗位的 `security_id` 收集起来，传递给步骤 7 由其统一追加到 `meta.json.recorded_job_ids`，防止下一轮重复推荐。筛选环节本身不修改 meta.json
 7. `job-excluded.csv` 中的岗位在 Step 1.5 被排除，不会进入候选列表。`recorded_job_ids` 已包含这些 ID，此步骤作为额外安全网

@@ -317,7 +317,8 @@ opencli boss search "测试" --limit 1 -f json
   "exclude_keywords": [],
   "search_keywords": [
     "{从画像的搜索关键词部分逐条写入}"
-  ]
+  ],
+  "search_pages": {}
 }
 ```
 
