@@ -99,7 +99,7 @@ opencli boss detail --security-id {id} -f json
 文件使用 CSV 格式（逗号分隔），第一行为表头，后续每行一个岗位：
 
 ```csv
-编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id
+编号,岗位名称,公司名,链接,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,security_id
 ```
 
 ### 写入规则
@@ -113,7 +113,7 @@ opencli boss detail --security-id {id} -f json
    ```
    "=HYPERLINK(""https://www.zhipin.com/job_detail/xxx.html"",""点击查看"")"
    ```
-   整个公式用双引号包裹，公式内部的双引号用 `""` 转义。该字段为 CSV 倒数第二列（security_id 之前）
+   整个公式用双引号包裹，公式内部的双引号用 `""` 转义。该字段为公司名之后、薪资之前
 
 ### 字段缺失默认值
 
@@ -132,7 +132,7 @@ opencli boss detail --security-id {id} -f json
 ### CSV 行示例
 
 ```csv
-12,全栈工程师(AI Agent),星辰科技,15-23K,广州·天河区,2026-04-03,3-5年,Vue,Python,MySQL,82,★★★★☆,张明,技术总监,刚刚活跃,人工智能应用软件开发,A轮融资,156,"=HYPERLINK(""https://www.zhipin.com/job_detail/abc123.html"",""点击查看"")",sec_xxx
+12,全栈工程师(AI Agent),星辰科技,"=HYPERLINK(""https://www.zhipin.com/job_detail/abc123.html"",""点击查看"")",15-23K,广州·天河区,2026-04-03,3-5年,Vue,Python,MySQL,82,★★★★☆,张明,技术总监,刚刚活跃,人工智能应用软件开发,A轮融资,156,sec_xxx
 ```
 
 ## 步骤 7：更新 meta.json
@@ -190,7 +190,7 @@ remaining_hours = floor((created_at + 7天 - 当前时间) / 小时)
 写入 `data/job-candidates.csv` 的每个岗位为一行 CSV，列顺序如下：
 
 ```
-编号,岗位名称,公司名,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,链接,security_id
+编号,岗位名称,公司名,链接,薪资,地点,发布日期,经验要求,技能要求,匹配度分数,匹配度星级,BOSS姓名,BOSS职位,HR活跃度,公司主营业务,公司发展状况,社保人数,security_id
 ```
 
 如果某个字段信息缺失，使用以下默认值：
